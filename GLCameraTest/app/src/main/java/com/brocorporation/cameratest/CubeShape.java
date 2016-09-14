@@ -1,6 +1,5 @@
 package com.brocorporation.cameratest;
 
-import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 
 import java.nio.ByteBuffer;
@@ -11,26 +10,47 @@ import java.nio.ShortBuffer;
 /**
  * Created by leon on 07.09.16.
  */
-public class CameraTextureShape extends GLShape {
+public class CubeShape extends GLShape {
 
-    private final static byte POS_PER_VERTEX = 2;
-    private final static byte UV_PER_VERTEX = 2;
-    private final static byte STRIDE = (POS_PER_VERTEX + UV_PER_VERTEX) * BYTES_PER_FLOAT;
+    private final static byte POS_PER_VERTEX = 3;
+    private final static byte COL_PER_VERTEX = 3;
+    private final static byte STRIDE = (POS_PER_VERTEX + COL_PER_VERTEX) * BYTES_PER_FLOAT;
 
-    private TextureOnlyShader shader;
+    private ColorShader shader;
     private final FloatBuffer vBuffer;
     private final ShortBuffer iBuffer;
     int[] buffers = new int[2];
 
-    public CameraTextureShape(TextureOnlyShader shader) {
+    public CubeShape(ColorShader shader) {
         super();
         this.shader = shader;
         float[] vertices = new float[]{
-                -1, 1, 0, 1,
-                -1, -1, 0, 0,
-                1, -1, 1, 0,
-                1, 1, 1, 1};
-        short[] indices = new short[]{0, 1, 2, 0, 2, 3};
+                -0.5f,-0.5f,-0.5f,0,0,0,
+                +0.5f,-0.5f,-0.5f,1,0,0,
+                -0.5f,+0.5f,-0.5f,0,1,0,
+                +0.5f,+0.5f,-0.5f,1,1,0,
+                -0.5f,-0.5f,+0.5f,0,0,1,
+                +0.5f,-0.5f,+0.5f,1,0,1,
+                -0.5f,+0.5f,+0.5f,0,1,1,
+                +0.5f,+0.5f,+0.5f,1,1,1
+                };
+        /*float[] vertices = new float[]{
+                -1,-1,-1, 0,0,0,
+                +1,-1,-1, 1,0,0,
+                -1,+1,-1, 0,1,0,
+                +1,+1,-1, 1,1,0,
+                -1,-1,+1, 0,0,1,
+                +1,-1,+1, 1,0,1,
+                -1,+1,+1, 0,1,1,
+                +1,+1,+1, 1,1,1
+        };*/
+        short[] indices = new short[]{
+                2, 0, 3, 3, 0, 1,
+                3, 1, 7, 7, 1, 5,
+                7, 5, 6, 6, 5, 4,
+                6, 4, 2, 2, 4, 0,
+                6, 2, 7, 7, 2, 3,
+                0, 4, 1, 1, 4, 5};
         vBuffer = ByteBuffer
                 .allocateDirect(vertices.length * BYTES_PER_FLOAT)
                 .order(ByteOrder.nativeOrder()).asFloatBuffer();
@@ -52,26 +72,23 @@ public class CameraTextureShape extends GLShape {
         GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
-    public void render(int texture, float[] modelMatrix) {
+    public void render(float[] mvpMatrix) {
         final int[] aHandle = shader.aHandle;
         final int[] uHandle = shader.uHandle;
-        final int positionHandle = aHandle[TextureOnlyShader.A_POSITION];
-        final int uvHandle = aHandle[TextureOnlyShader.A_UV];
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture);
-        GLES20.glUniform1i(uHandle[TextureOnlyShader.U_TEXTURE], 0);
-        GLES20.glUniformMatrix4fv(uHandle[TextureOnlyShader.U_MODEL],1, false, modelMatrix, 0);
+        final int positionHandle = aHandle[ColorShader.A_POSITION];
+        final int colorHandle = aHandle[ColorShader.A_COLOR];
+        GLES20.glUniformMatrix4fv(uHandle[ColorShader.U_MVP],1, false, mvpMatrix, 0);
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, buffers[0]);
         GLES20.glEnableVertexAttribArray(positionHandle);
-        GLES20.glEnableVertexAttribArray(uvHandle);
+        GLES20.glEnableVertexAttribArray(colorHandle);
         GLES20.glVertexAttribPointer(positionHandle, POS_PER_VERTEX, GLES20.GL_FLOAT, false, STRIDE, 0);
-        GLES20.glVertexAttribPointer(uvHandle, UV_PER_VERTEX, GLES20.GL_FLOAT, false, STRIDE, 8);
+        GLES20.glVertexAttribPointer(colorHandle, COL_PER_VERTEX, GLES20.GL_FLOAT, false, STRIDE, 12);
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
         GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, buffers[1]);
-        GLES20.glDrawElements(GLES20.GL_TRIANGLES, 6, GLES20.GL_UNSIGNED_SHORT, 0);
+        GLES20.glDrawElements(GLES20.GL_TRIANGLES, 36, GLES20.GL_UNSIGNED_SHORT, 0);
         GLES20.glBindBuffer(GLES20.GL_ELEMENT_ARRAY_BUFFER, 0);
         GLES20.glDisableVertexAttribArray(positionHandle);
-        GLES20.glDisableVertexAttribArray(uvHandle);
+        GLES20.glDisableVertexAttribArray(colorHandle);
     }
 
     @Override

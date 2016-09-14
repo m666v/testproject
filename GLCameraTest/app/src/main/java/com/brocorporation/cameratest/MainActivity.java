@@ -28,7 +28,6 @@ public class MainActivity extends Activity {
     private void initCameraView() {
        view = new GLView(this);
        setContentView(view);
-        //setContentView(new CameraSurface(this));
     }
 
     @Override

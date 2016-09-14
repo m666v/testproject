@@ -79,7 +79,6 @@ public class CameraTexture extends SurfaceTexture {
         camera.setParameters(param);
         camera.setDisplayOrientation(orientation);
         camera.startPreview();
-
     }
 
     private static Camera.Size getOptimalPreviewSize(List<Camera.Size> sizes, int w, int h) {
