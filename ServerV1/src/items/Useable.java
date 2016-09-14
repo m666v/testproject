@@ -3,13 +3,12 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+package items;
 
 /**
  *
  * @author Tesunami
  */
-public enum ClientStatus {
-    OFFLINE,
-    MAIN_MENU ,
-    IN_GAME
+public interface Useable {
+    public void use(Character ch,String target);
 }

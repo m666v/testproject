@@ -10,12 +10,11 @@ package items;
  *
  * @author Tesunami
  */
-public class Item {
-    private int id;
+public abstract class Item {
+    private long id;
     private String name;
     private ItemSlot itemSlot;
-    private int armor;
-    private int strange;
-    private int agility;
-    private int intelect;
+    private int level;
+    private long bounded;
+    private boolean useable;
 }
