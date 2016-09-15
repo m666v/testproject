@@ -10,6 +10,7 @@ import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
+import android.view.Surface;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -76,7 +77,7 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
             , viewMatrix= new float[16]
             , modelMatrix = new float[16]
             , mv = new float[16]
-            , mvp = new float[16];
+            , mvp = new float[16], vp = new float[16], tmp = new float[16];
 
     private ColorShader colorShader;
     private CubeShape cubeShape;
@@ -110,8 +111,10 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         GLES20.glViewport(0, 0, width, height);
         final float near = 0.01f;
         final float ratio = (float) width / height;
-        Matrix.frustumM(projectionMatrix,0,-ratio*near,ratio*near,-1*near,1*near,near,100);
-        cameraTexture.surfaceChanged(context, width, height);
+        Matrix.frustumM(projectionMatrix,0,-ratio*near,ratio*near,-1*near,1*near,near,50);
+        final int rotation = context.getWindowManager().getDefaultDisplay().getRotation();
+        cameraTexture.surfaceChanged(width, height, rotation);
+        calculateMappingAxis(rotation);
     }
 
     @Override
@@ -122,21 +125,39 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         cameraTexture.getTransformMatrix(modelMatrix);
         cameraTextureShape.render(cameraTexture.getTexture(), modelMatrix);
         GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+
         GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT);
         colorShader.use();
-        //Matrix.translateM(viewMatrix, 0, R, 0, 0,1.7f, 0);
+        Matrix.setIdentityM(viewMatrix, 0);//
+        //synchronized (this) {
+        //    System.arraycopy(R,0, viewMatrix,0, 16);
+        //}
+        //Matrix.translateM(viewMatrix,0,0,-1.7f*0,0);
+
+        Matrix.setIdentityM(viewMatrix,0);
+        //Matrix.translateM(viewMatrix,0,0,0,0);
+        synchronized (this) {
+            System.arraycopy(R,0,viewMatrix,0,16);//TODO getOrientation rotate in right order
+        }
+
+
+        Matrix.multiplyMM(vp, 0, projectionMatrix, 0, viewMatrix, 0);
+
         Matrix.setIdentityM(modelMatrix, 0);
-        Matrix.translateM(modelMatrix, 0, 0,-1.7f,0);
-        Matrix.multiplyMM(viewMatrix, 0, R, 0, modelMatrix,0);
-        //Matrix.setLookAtM(viewMatrix,0,0,0,-2,0,0,0,0,1,0);
-        Matrix.setIdentityM(modelMatrix, 0);
-        Matrix.translateM(modelMatrix,0, 0,0.0f,-2f);
-        Matrix.rotateM(modelMatrix,0, 45, 0,1,0);
-        Matrix.multiplyMM(mv,0,viewMatrix, 0, modelMatrix,0);
-        Matrix.multiplyMM(mvp,0,projectionMatrix, 0, mv,0);
+
+        /* Matrix.setIdentityM(tmp,0);
+        Matrix.translateM(tmp,0,0,0,-8);
+        synchronized (this) {
+             Matrix.multiplyMM(modelMatrix,0,tmp,0,R,0);
+        }*/
+        Matrix.translateM(modelMatrix,0, 0, 0.0f,-2f);
+
+
+        Matrix.multiplyMM(mvp,0,vp, 0, modelMatrix,0);
 
         cubeShape.render(mvp);
-    }
+        a+=30/60f;
+    }float a=0;
 
     private static int createTexture() {
         int[] texture = new int[1];
@@ -149,27 +170,60 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         return texture[0];
     }
 
-    final float[] gravity = new float[3],geomag = new float[3];byte calcRotationMatrix = 0;
-    final float[] R = new float[16];
+    final float[] gravity = new float[3],geomag = new float[3];
+    byte calcRotationMatrix = 0;
+    final float[] inR = new float[16], R = new float[16];
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE)
             return;
         if(Sensor.TYPE_ACCELEROMETER == event.sensor.getType()){
-            if(calcRotationMatrix!=3)calcRotationMatrix+=1;
-            System.arraycopy(event.values,0,gravity,0,event.values.length);
+            if(calcRotationMatrix!=3) {
+                calcRotationMatrix += 1;
+                System.arraycopy(event.values,0,gravity,0,event.values.length);
+            }else lowPass(gravity, event.values, gravity, 0.8f);
         }else if(Sensor.TYPE_MAGNETIC_FIELD == event.sensor.getType()){
-            if(calcRotationMatrix!=3)calcRotationMatrix+=2;
-            System.arraycopy(event.values,0,geomag,0,event.values.length);
+            if(calcRotationMatrix!=3){
+                calcRotationMatrix+=2;
+                System.arraycopy(event.values,0,geomag,0,event.values.length);
+            }else lowPass(geomag, event.values, geomag, 0.8f);
         }
-        if(calcRotationMatrix==3 && SensorManager.getRotationMatrix(R, null, gravity, geomag)){
-            //SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_X,
-             //       SensorManager.AXIS_Y, outR);
+        if(calcRotationMatrix==3 && SensorManager.getRotationMatrix(inR, null, gravity, geomag)){
+            synchronized (this) {
+                SensorManager.remapCoordinateSystem(inR, xAxis, yAxis, R);
+            }
         }
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
+    }
+    int xAxis, yAxis;
+    public void calculateMappingAxis(int rotation){
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                xAxis = SensorManager.AXIS_X;
+                yAxis = SensorManager.AXIS_Y;
+                break;
+            case Surface.ROTATION_90:
+                xAxis = SensorManager.AXIS_Y;
+                yAxis = SensorManager.AXIS_MINUS_X;
+                break;
+            case Surface.ROTATION_180:
+                xAxis = SensorManager.AXIS_MINUS_X;
+                yAxis = SensorManager.AXIS_MINUS_Y;
+                break;
+            case Surface.ROTATION_270:
+                xAxis = SensorManager.AXIS_MINUS_Y;
+                yAxis = SensorManager.AXIS_X;
+                break;
+        }
+    }
+
+    public static void lowPass(float[] out, float[] from, float[] to, float alpha){
+        for(int i=out.length-1;i>=0;i--){
+            out[i]=from[i]+(to[i]-from[i])*alpha;
+        }
     }
 }

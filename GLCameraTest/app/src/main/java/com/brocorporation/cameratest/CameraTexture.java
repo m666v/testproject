@@ -1,6 +1,5 @@
 package com.brocorporation.cameratest;
 
-import android.app.Activity;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.view.Surface;
@@ -67,12 +66,12 @@ public class CameraTexture extends SurfaceTexture {
         }
     }
 
-    public void surfaceChanged(Activity activity, int width, int height) {
+    public void surfaceChanged(int width, int height, int rotation) {
         if (camera == null) return;
         camera.stopPreview();
         Camera.Parameters param = camera.getParameters();
         Camera.Size size = getOptimalPreviewSize(param.getSupportedPreviewSizes(), width, height);
-        int orientation = getDisplayOrientation(activity, cameraId);
+        int orientation = getDisplayOrientation(rotation, cameraId);
 
         param.setPreviewSize(size.width, size.height);
         param.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
@@ -123,10 +122,9 @@ public class CameraTexture extends SurfaceTexture {
         return maxSize;
     }
 
-    private static int getDisplayOrientation(Activity activity, int cameraId) {
+    private static int getDisplayOrientation(int rotation, int cameraId) {
         Camera.CameraInfo info = new android.hardware.Camera.CameraInfo();
         Camera.getCameraInfo(cameraId, info);
-        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
         int degrees = 0;
         switch (rotation) {
             case Surface.ROTATION_0:
