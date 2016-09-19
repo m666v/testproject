@@ -22,7 +22,14 @@ public class TCPClient {
     private boolean serverID;
     private String serverMessage;
     private boolean mRun;
+    private static TCPClient SINGLETON;
 
+    public TCPClient creatTCPClient(OnMessageReceived listener, boolean serverID){
+        if(TCPClient.SINGLETON == null){
+            return new TCPClient(listener, serverID);
+        }else
+            return TCPClient.SINGLETON;
+    }
 
     public TCPClient(OnMessageReceived listener, boolean serverID) {
         mMessageListener = listener;
@@ -31,6 +38,7 @@ public class TCPClient {
         }else {
             SERVERIP = "192.168.178.40";
         }
+        TCPClient.SINGLETON = this;
     }
 
     public void sendMessage(String message) {

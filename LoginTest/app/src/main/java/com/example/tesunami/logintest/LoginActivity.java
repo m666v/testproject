@@ -25,8 +25,7 @@ public class LoginActivity extends AppCompatActivity implements DecoderActivity{
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Intent intent = getIntent();
-        this.connectTask =(ConnectTask) intent.getSerializableExtra("connectTask");
-        connectTask.setCurrentActivity(this);
+        this.connectTask = ConnectTask.creatConnectTask(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Button login = (Button) findViewById(R.id.loginBTN);
@@ -41,8 +40,10 @@ public class LoginActivity extends AppCompatActivity implements DecoderActivity{
         login.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if ((username.getText().equals("")) && (pass.getText().equals(""))) {
+                if (!(username.getText().equals("")) && !(pass.getText().equals(""))) {
+
                     String message = "00#" + username.getText().toString() + "#" + pass.getText().toString()+"\n";
+                    MainActivity.tcpClient.run();
                     if (MainActivity.tcpClient != null) {
                         MainActivity.tcpClient.sendMessage(message);
                         ProgressDialog progressDialog = ProgressDialog.show(LoginActivity.this, "",
@@ -50,7 +51,7 @@ public class LoginActivity extends AppCompatActivity implements DecoderActivity{
                     }
                 } else {
                     AlertDialog alertDialog = new AlertDialog.Builder(LoginActivity.this).create();
-                    alertDialog.setTitle("Wrong Entery");
+                    alertDialog.setTitle("Wrong Entery" + username.getText() + pass.getText());
                     alertDialog.setMessage("You need to enter username and password!!");
                     alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
                             new DialogInterface.OnClickListener() {
@@ -71,7 +72,6 @@ public class LoginActivity extends AppCompatActivity implements DecoderActivity{
         //login proccess
         if(message.split("#")[0].equals("00")){
         Intent intent= new Intent(this,LoginActivity.class);
-        intent.putExtra("ConnectTask", (Serializable) connectTask);
         startActivity(intent);
         }
 

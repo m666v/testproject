@@ -14,8 +14,7 @@ public class MainMenuActivity extends AppCompatActivity implements DecoderActivi
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Intent intent = getIntent();
-        this.connectTask =(ConnectTask) intent.getSerializableExtra("connectTask");
+        connectTask = ConnectTask.creatConnectTask(this);
         connectTask.setCurrentActivity(this);
 
         setContentView(R.layout.activity_main_menu);
