@@ -86,7 +86,8 @@ public class Server {
                     player = new Player(username, cs, id);
                     
                     }
-                    st = new ServerThread(socket, player);
+                    out.writeBytes("00#00#Autentication successfull\n");
+					st = new ServerThread(socket, player);
                     st.start();
                     listOfPlayers.put(id, st);
                 }
