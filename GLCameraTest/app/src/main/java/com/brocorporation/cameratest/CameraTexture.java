@@ -70,12 +70,16 @@ public class CameraTexture extends SurfaceTexture {
         if (camera == null) return;
         camera.stopPreview();
         Camera.Parameters param = camera.getParameters();
-        Camera.Size size = getOptimalPreviewSize(param.getSupportedPreviewSizes(), width, height);
-        int orientation = getDisplayOrientation(rotation, cameraId);
-
+        Camera.Size size;
+        if(rotation==Surface.ROTATION_0||rotation==Surface.ROTATION_180){
+            size = getOptimalPreviewSize(param.getSupportedPreviewSizes(), width, height);
+        }else{
+            size = getOptimalPreviewSize(param.getSupportedPreviewSizes(), height, width);
+        }
         param.setPreviewSize(size.width, size.height);
         param.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
         camera.setParameters(param);
+        int orientation = getDisplayOrientation(rotation, cameraId);
         camera.setDisplayOrientation(orientation);
         camera.startPreview();
     }
@@ -120,6 +124,12 @@ public class CameraTexture extends SurfaceTexture {
             }
         }
         return maxSize;
+    }
+
+    public Camera.CameraInfo getCameraInfo(){
+        Camera.CameraInfo info = new android.hardware.Camera.CameraInfo();
+        Camera.getCameraInfo(cameraId, info);
+        return info;
     }
 
     private static int getDisplayOrientation(int rotation, int cameraId) {

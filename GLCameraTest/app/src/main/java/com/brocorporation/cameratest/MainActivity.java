@@ -6,6 +6,11 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.text.InputType;
+import android.view.Gravity;
+import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.TextView;
 
 public class MainActivity extends Activity {
     private final static int PERMISSIONS_REQUEST_CAMERA = 1;
@@ -20,14 +25,38 @@ public class MainActivity extends Activity {
                     new String[]{Manifest.permission.CAMERA},
                     PERMISSIONS_REQUEST_CAMERA);
         }else{
-            initCameraView();
+            initView();
         }
 
     }
 
-    private void initCameraView() {
-       view = new GLView(this);
-       setContentView(view);
+    private TextView tv;
+    public TextView getTextView(){
+        return tv;
+    }
+
+    private void initView() {
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        tv = new TextView(this);
+        tv.setHorizontallyScrolling(false);
+        tv.setSingleLine(false);
+        tv.setInputType(InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        tv.setMaxLines(Integer.MAX_VALUE);
+        tv.setEllipsize(null);
+        FrameLayout fl = new FrameLayout(this);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);;
+        setContentView(fl, lp);
+
+        view = new GLView(this);
+        fl.addView(view, lp);
+
+
+        FrameLayout.LayoutParams tvlp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);;
+        tvlp.gravity = Gravity.LEFT|Gravity.TOP;
+        fl.addView(tv, tvlp);
+
+        //view = new GLView(this);
+        //setContentView(view);
     }
 
     @Override
@@ -59,7 +88,7 @@ public class MainActivity extends Activity {
         switch (requestCode) {
             case PERMISSIONS_REQUEST_CAMERA: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    initCameraView();
+                    initView();
                 } else {
                     finish();
                     System.exit(0);
