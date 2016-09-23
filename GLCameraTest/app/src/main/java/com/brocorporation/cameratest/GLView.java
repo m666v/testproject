@@ -4,8 +4,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.hardware.Camera;
 import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
@@ -20,23 +18,27 @@ import javax.microedition.khronos.opengles.GL10;
 /**
  * Created by leon on 07.09.16.
  */
-public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, SensorEventListener {
+public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, OrientationSensor.ChangeListener {
 
     private CameraTexture cameraTexture;
     private TextureOnlyShader textureOnlyShader;
     private CameraTextureShape cameraTextureShape;
     private Activity context;
-    private final SensorManager sensorManager;
-    private final Sensor accelerometer, magnetometer;
+    private final OrientationSensor orientationSensor;
 
 
     public GLView(Activity context) {
         super(context);
         this.context = context;
 
-        sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        SensorManager sm = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
+        if(sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)!=null){
+            orientationSensor = new RVOrientationSensor(sm);
+        }else{
+            orientationSensor = new AMOrientationSensor(sm);
+        }
+        orientationSensor.setOnChangeListener(this);
+
 
         setEGLContextClientVersion(2);
         setRenderer(this);
@@ -60,8 +62,7 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
     @Override
     public void onResume() {
         super.onResume();
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
-        sensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_GAME);
+        orientationSensor.start();
         Matrix.setIdentityM(R, 0);
     }
 
@@ -70,7 +71,7 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         super.onPause();
         if (cameraTexture != null)
             cameraTexture.stop();
-        sensorManager.unregisterListener(this);
+        orientationSensor.stop();
     }
 
     public void releaseAll() {
@@ -80,7 +81,8 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         cameraTextureShape.release();*/
     }
 
-    private final float[] projectionMatrix = new float[16], viewMatrix = new float[16], modelMatrix = new float[16], mv = new float[16], mvp = new float[16], vp = new float[16], tmp = new float[16];
+    private final float[] projectionMatrix = new float[16], viewMatrix = new float[16], modelMatrix = new float[16]
+            , mv = new float[16], mvp = new float[16], vp = new float[16], tmp = new float[16];
 
     private ColorShader colorShader;
     private CubeShape cubeShape;
@@ -115,18 +117,13 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         cameraTexture.surfaceChanged(width, height, rotation);
         calculateMappingAxis(rotation);
         final float aspect = (float) width / height;
-        float fovy;
-        if(rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180){
-            fovy = cameraTexture.getCamera().getParameters().getVerticalViewAngle();
-        }else{
-            fovy = (float)Math.toDegrees(2*Math.atan(Math.tan(Math.toRadians(cameraTexture.getCamera().getParameters().getVerticalViewAngle()/2))/aspect));
+        float fovy = (float)Math.tan(Math.toRadians(cameraTexture.getCamera().getParameters().getVerticalViewAngle()/2));
+        if(rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270){
+            fovy/=aspect;
         }
-        //fovy = cameraTexture.getCameraInfo().orientation%180==0 ? cameraTexture.getCamera().getParameters().getVerticalViewAngle() : cameraTexture.getCamera().getParameters().getHorizontalViewAngle();
-        //fovy = cameraTexture.getCamera().getParameters().getVerticalViewAngle();
         GLES20.glViewport(0, 0, width, height);
-
         final float near = 0.01f;
-        final float t = near * (float)Math.tan(Math.toRadians(fovy/2));
+        final float t = near * fovy;
         final float r = t * aspect;
         Matrix.frustumM(projectionMatrix, 0,  -r, r, -t, t, near, 50);
     }
@@ -177,14 +174,14 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         Matrix.multiplyMM(vp, 0, projectionMatrix, 0, viewMatrix, 0);
 
         Matrix.setIdentityM(modelMatrix, 0);
-        Matrix.translateM(modelMatrix, 0, -3, 0.3f, -2f);
+        Matrix.translateM(modelMatrix, 0, -3, 0.15f, -2f);
         //Matrix.rotateM(modelMatrix, 0, angle1, 0, 1, 0);
         angle1 += 30 * factor;
         Matrix.multiplyMM(mvp, 0, vp, 0, modelMatrix, 0);
         cubeShape.render(mvp);
 
         Matrix.setIdentityM(modelMatrix, 0);
-        Matrix.translateM(modelMatrix, 0, 2, 0.3f, 2f);
+        Matrix.translateM(modelMatrix, 0, 2, 0.15f, 2f);
         Matrix.rotateM(modelMatrix, 0, angle2, 0, 1, 0);
         angle2 += 45 * factor;
         Matrix.multiplyMM(mvp, 0, vp, 0, modelMatrix, 0);
@@ -192,8 +189,8 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
 
         Matrix.setIdentityM(modelMatrix, 0);
         Matrix.translateM(modelMatrix, 0, 0, 1.7f, 3f);
-        //Matrix.rotateM(modelMatrix, 0, angle3, 0, 1, 0);
-        //angle3 += 65 * factor;
+        Matrix.rotateM(modelMatrix, 0, angle3, 0, 1, 0);
+        angle3 += 65 * factor;
         Matrix.multiplyMM(mvp, 0, vp, 0, modelMatrix, 0);
         cubeShape.render(mvp);
 
@@ -214,50 +211,29 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         return texture[0];
     }
 
-    final float[] gravity = new float[3], geomag = new float[3];
-    byte calcRotationMatrix = 0;
-    final float[] inR = new float[16], R = new float[16];
+
+    float[] R = new float[16];
     float[] viewDirection = new float[3];
-
     @Override
-    public void onSensorChanged(SensorEvent event) {
-        if (event.accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE)
-            return;
-        if (Sensor.TYPE_ACCELEROMETER == event.sensor.getType()) {
-            if (calcRotationMatrix != 3) {
-                calcRotationMatrix += 1;
-                System.arraycopy(event.values, 0, gravity, 0, event.values.length);
-            } else lowPass(gravity, event.values, gravity, 0.25f);
-        } else if (Sensor.TYPE_MAGNETIC_FIELD == event.sensor.getType()) {
-            if (calcRotationMatrix != 3) {
-                calcRotationMatrix += 2;
-                System.arraycopy(event.values, 0, geomag, 0, event.values.length);
-            } else lowPass(geomag, event.values, geomag, 0.25f);
-        }
-        if (calcRotationMatrix == 3 && SensorManager.getRotationMatrix(inR, null, gravity, geomag)) {
-            synchronized (this) {
-                SensorManager.remapCoordinateSystem(inR, xAxis, yAxis, R);
-                float x = R[4], y = R[5], z = R[6];
-                R[4] = R[8];
-                R[5] = R[9];
-                R[6] = R[10];
-                R[8] = -x;
-                R[9] = -y;
-                R[10] = -z;
-                //viewDirection[0] = R[2];
-                //viewDirection[1] = R[6];
-                //viewDirection[2] = R[10];
-                viewDirection[0] = -R[8];
-                viewDirection[1] = -R[9];
-                viewDirection[2] = -R[10];
-            }
+    public void onOrientationChanged(float[] inR, float[] q){
+        synchronized (this) {
+            SensorManager.remapCoordinateSystem(inR, xAxis, yAxis, R);
+            float x = R[4], y = R[5], z = R[6];
+            R[4] = R[8];
+            R[5] = R[9];
+            R[6] = R[10];
+            R[8] = -x;
+            R[9] = -y;
+            R[10] = -z;
+            //viewDirection[0] = R[2];
+            //viewDirection[1] = R[6];
+            //viewDirection[2] = R[10];
+            viewDirection[0] = -R[8];
+            viewDirection[1] = -R[9];
+            viewDirection[2] = -R[10];
         }
     }
 
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
-    }
 
     int xAxis, yAxis;float camOffsetX, camOffsetY;
 
@@ -282,9 +258,5 @@ public class GLView extends GLSurfaceView implements GLSurfaceView.Renderer, Sen
         }
     }
 
-    public static void lowPass(float[] out, float[] from, float[] to, float alpha) {
-        for (int i = out.length - 1; i >= 0; i--) {
-            out[i] = to[i] + (from[i] - to[i]) * alpha;
-        }
-    }
+
 }
