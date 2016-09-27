@@ -2,17 +2,16 @@ package com.example.tesunami.logintest;
 
 import android.os.AsyncTask;
 
-
 /**
  * Created by tesunami on 19.09.16.
  */
 
-public class ConnectTask extends AsyncTask<String, String, TCPClient> {
+public class ConnectTask extends AsyncTask<String, String, TCPClient>{
     // 0 for login, 1 for main menu, 2 for in game!
     private static TCPClient tcpClient;
     private DecoderActivity currentActivity;
-    private static ConnectTask connectTask;
-
+    private static ConnectTask CONNEC_TTASK;
+    public static boolean SERVER_ADDRESS;
     private ConnectTask(){
 
     }
@@ -22,36 +21,31 @@ public class ConnectTask extends AsyncTask<String, String, TCPClient> {
 
 
     public static ConnectTask creatConnectTask(DecoderActivity decoderActivity){
-        if(ConnectTask.connectTask == null)
-            return new ConnectTask(decoderActivity);
-        return ConnectTask.connectTask;
+        if(ConnectTask.CONNEC_TTASK == null) {
+            ConnectTask.CONNEC_TTASK = new ConnectTask(decoderActivity);
+            return ConnectTask.CONNEC_TTASK;
+
+        }
+        ConnectTask.CONNEC_TTASK.currentActivity = decoderActivity;
+        return ConnectTask.CONNEC_TTASK;
     }
 
-
-    public DecoderActivity getCurrentActivity() {
-        return currentActivity;
-    }
-
-    public void setCurrentActivity(DecoderActivity currentActivity) {
-        this.currentActivity = currentActivity;
+    public static TCPClient getTcpClient() {
+        return ConnectTask.tcpClient;
     }
 
     @Override
     protected TCPClient doInBackground(String... message) {
 
         //we create a TCPClient object and
-        if (tcpClient == null) {
-            tcpClient = new TCPClient(new TCPClient.OnMessageReceived() {
-                @Override
-                //here the messageReceived method is implemented
-                public void messageReceived(String message) {
-                    //this method calls the onProgressUpdate
-                    publishProgress(message);
-                }
-            }, false);
 
-            MainActivity.tcpClient = tcpClient;
-        }
+             ConnectTask.tcpClient = TCPClient.creatTCPClient(new TCPClient.OnMessageReceived(){
+                public void messageReceived(String message) {
+                    publishProgress(message);
+
+                }
+            },SERVER_ADDRESS);
+            tcpClient.start();
         return null;
     }
 
@@ -60,5 +54,6 @@ public class ConnectTask extends AsyncTask<String, String, TCPClient> {
         super.onProgressUpdate(values);
         currentActivity.decodeMessage(values[0]);
     }
+
 
 }

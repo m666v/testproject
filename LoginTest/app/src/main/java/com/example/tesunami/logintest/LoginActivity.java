@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -18,39 +19,32 @@ import java.io.Serializable;
 
 public class LoginActivity extends AppCompatActivity implements DecoderActivity{
 
-    private static final String[] ITEMS = {"LeonServer", "MohammadServer"};
     private ConnectTask connectTask;
-
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Intent intent = getIntent();
-        this.connectTask = ConnectTask.creatConnectTask(this);
+
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_login);
+        connectTask = ConnectTask.creatConnectTask(this);
         Button login = (Button) findViewById(R.id.loginBTN);
         final EditText username = (EditText) findViewById(R.id.usernameET);
         final EditText pass = (EditText) findViewById(R.id.passwordP);
-
-        //dropdown itemz
-        Spinner dropdown = (Spinner) findViewById(R.id.serverListSP);
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, ITEMS);
-        dropdown.setAdapter(adapter);
-
+        Log.e("Login","inja");
         login.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!(username.getText().equals("")) && !(pass.getText().equals(""))) {
+                if ((username.getText().length()>0) && (pass.getText().length()>0)) {
 
                     String message = "00#" + username.getText().toString() + "#" + pass.getText().toString()+"\n";
-                    MainActivity.tcpClient.run();
-                    if (MainActivity.tcpClient != null) {
-                        MainActivity.tcpClient.sendMessage(message);
-                        ProgressDialog progressDialog = ProgressDialog.show(LoginActivity.this, "",
-                                "Connecting to server...", true);
+
+                    if (ConnectTask.getTcpClient() != null) {
+                        ConnectTask.getTcpClient().sendMessage(message);
+                        progressDialog = ProgressDialog.show(LoginActivity.this, "","Connecting to server...", true);
                     }
                 } else {
-                    AlertDialog alertDialog = new AlertDialog.Builder(LoginActivity.this).create();
+                    AlertDialog alertDialog= new AlertDialog.Builder(LoginActivity.this).create();
                     alertDialog.setTitle("Wrong Entery" + username.getText() + pass.getText());
                     alertDialog.setMessage("You need to enter username and password!!");
                     alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
@@ -70,8 +64,10 @@ public class LoginActivity extends AppCompatActivity implements DecoderActivity{
     @Override
     public void decodeMessage(String message) {
         //login proccess
+        Log.e("LoginTest","Decoded?");
         if(message.split("#")[0].equals("00")){
-        Intent intent= new Intent(this,LoginActivity.class);
+            progressDialog.dismiss();
+        Intent intent= new Intent(this,MainMenuActivity.class);
         startActivity(intent);
         }
 
