@@ -13,7 +13,7 @@ import java.net.Socket;
 /**
  * Created by tesunami on 17.09.16.
  */
-public class TCPClient {
+public class TCPClient extends Thread{
     private final String SERVERIP;
     public static final int SERVERPORT = 4444;
     private PrintWriter out;
@@ -24,9 +24,10 @@ public class TCPClient {
     private boolean mRun;
     private static TCPClient SINGLETON;
 
-    public TCPClient creatTCPClient(OnMessageReceived listener, boolean serverID){
+    public static TCPClient creatTCPClient(OnMessageReceived listener, boolean serverID){
         if(TCPClient.SINGLETON == null){
-            return new TCPClient(listener, serverID);
+            TCPClient.SINGLETON = new TCPClient(listener, serverID);
+            return TCPClient.SINGLETON;
         }else
             return TCPClient.SINGLETON;
     }
@@ -52,6 +53,7 @@ public class TCPClient {
         mRun = false;
     }
 
+    @Override
     public void run() {
 
         mRun = true;
@@ -84,7 +86,9 @@ public class TCPClient {
 
                     if (serverMessage != null && mMessageListener != null) {
                         //call the method messageReceived from MyActivity class
+                        Log.e("TCP Client","C: Recieved.");
                         mMessageListener.messageReceived(serverMessage);
+
                     }
                     serverMessage = null;
 
