@@ -20,12 +20,13 @@ public class Server {
     static final int SERVERPORT = 4444;
     private static TreeMap listOfPlayers;
     private static Socket socket = null;
+    static final int DB_VERSION = 1;
 
     public static void main(String args[]) {
 
         try {
             ServerSocket serverSocket = null;
-            con = DriverManager.getConnection("jdbc:derby://localhost:1527/PlayersDB");
+            con = DriverManager.getConnection("jdbc:derby://localhost:1527/GameDB");
             System.out.println("DB is rdy\n");
             serverSocket = new ServerSocket(SERVERPORT);
             System.out.println("Server is started...\n");
@@ -69,7 +70,7 @@ public class Server {
             for (int i = 0; i < 5; i++) {
                 if ((rs.getString("USERNAME") == null) || (rs.getString("PASS") != pass)) {
                     System.out.println("Wrong Username or Password\n");
-                    out.writeBytes("-1#01#Wrong Username or Password\n");
+                    out.writeChars("00#-1#00#Wrong Username or Password\n");
                     out.flush();
                     socket.close();
                 } else {
@@ -86,15 +87,16 @@ public class Server {
                     player = new Player(username, cs, id);
                     
                     }
-                    out.writeBytes("00#00#Autentication successfull\n");
-					st = new ServerThread(socket, player);
+                    out.writeChars("00#01#"+DB_VERSION+"#Autentication successfull\n");
+                    st = new ServerThread(socket, player);
                     st.start();
                     listOfPlayers.put(id, st);
+                    out.flush();
                 }
             }
         } else {
             // Ban process !... later Implementation
-            out.writeBytes("-1#01#Wrong Parameter\n);");
+            out.writeChars("00#-1#01#Wrong Parameter\n);");
             out.flush();
             socket.close();
             System.out.println("Clinet is been kicked\n");

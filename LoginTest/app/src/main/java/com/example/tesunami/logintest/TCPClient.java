@@ -4,6 +4,7 @@ import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -19,10 +20,14 @@ public class TCPClient extends Thread{
     private PrintWriter out;
     private BufferedReader in;
     private OnMessageReceived mMessageListener = null;
-    private boolean serverID;
     private String serverMessage;
     private boolean mRun;
+    private boolean update;
+    private boolean updateDone;
+    private int updateLen;
     private static TCPClient SINGLETON;
+    byte[] arrayByte;
+    int offset;
 
     public static TCPClient creatTCPClient(OnMessageReceived listener, boolean serverID){
         if(TCPClient.SINGLETON == null){
@@ -78,10 +83,12 @@ public class TCPClient extends Thread{
                 Log.e("TCP Client", "C: Done.");
 
                 //receive the message which the server sends back
-                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                InputStream inputStream=socket.getInputStream();
+                in = new BufferedReader(new InputStreamReader(inputStream));
 
                 //in this while the client listens for the messages sent by the server
                 while (mRun) {
+                    if(!update){
                     serverMessage = in.readLine();
 
                     if (serverMessage != null && mMessageListener != null) {
@@ -91,10 +98,22 @@ public class TCPClient extends Thread{
 
                     }
                     serverMessage = null;
+                    }else{
+                        arrayByte = new byte[updateLen];
+                        if(updateDone){
+                            giveBackUpdate(arrayByte);
+                        }else{
+                            offset = inputStream.read(arrayByte, offset, arrayByte.length);
+                            if(offset == updateLen){
+                                updateDone = true;
+                            }
+                            offset++;
+                        }
+                    }
 
                 }
 
-                Log.e("RESPONSE FROM SERVER", "S: Received Message: '" + serverMessage + "'");
+
 
             } catch (Exception e) {
 
@@ -112,6 +131,17 @@ public class TCPClient extends Thread{
 
         }
 
+    }
+
+    private void giveBackUpdate(byte[] b)  {
+        LoginActivity.UpdateDB(b);
+        this.update = false;
+    }
+
+    public void callUpdate(int updateLen){
+        this.updateLen = updateLen;
+        this.update = true;
+        sendMessage("00#02#rdy for Copy Database");
     }
 
     public interface OnMessageReceived {

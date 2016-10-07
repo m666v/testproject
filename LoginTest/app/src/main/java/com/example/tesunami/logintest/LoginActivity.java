@@ -15,12 +15,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.Serializable;
 
-public class LoginActivity extends AppCompatActivity implements DecoderActivity{
-
+public class LoginActivity extends AppCompatActivity implements DecoderActivity {
+    public boolean allSetUp = false;
     private ConnectTask connectTask;
     private ProgressDialog progressDialog;
+    private static DataBaseHelper dataBaseHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,20 +34,21 @@ public class LoginActivity extends AppCompatActivity implements DecoderActivity{
         Button login = (Button) findViewById(R.id.loginBTN);
         final EditText username = (EditText) findViewById(R.id.usernameET);
         final EditText pass = (EditText) findViewById(R.id.passwordP);
-        Log.e("Login","inja");
+        dataBaseHelper = new DataBaseHelper(this);
+        Log.e("Login", "inja");
         login.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if ((username.getText().length()>0) && (pass.getText().length()>0)) {
+                if ((username.getText().length() > 0) && (pass.getText().length() > 0)) {
 
-                    String message = "00#" + username.getText().toString() + "#" + pass.getText().toString()+"\n";
+                    String message = "00#00#" + username.getText().toString() + "#" + pass.getText().toString() + "\n";
 
                     if (ConnectTask.getTcpClient() != null) {
                         ConnectTask.getTcpClient().sendMessage(message);
-                        progressDialog = ProgressDialog.show(LoginActivity.this, "","Connecting to server...", true);
+                        progressDialog = ProgressDialog.show(LoginActivity.this, "", "Connecting to server...", true);
                     }
                 } else {
-                    AlertDialog alertDialog= new AlertDialog.Builder(LoginActivity.this).create();
+                    AlertDialog alertDialog = new AlertDialog.Builder(LoginActivity.this).create();
                     alertDialog.setTitle("Wrong Entery" + username.getText() + pass.getText());
                     alertDialog.setMessage("You need to enter username and password!!");
                     alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
@@ -64,14 +68,52 @@ public class LoginActivity extends AppCompatActivity implements DecoderActivity{
     @Override
     public void decodeMessage(String message) {
         //login proccess
-        Log.e("LoginTest","Decoded?");
-        if(message.split("#")[0].equals("00")){
-            progressDialog.dismiss();
-        Intent intent= new Intent(this,MainMenuActivity.class);
-        startActivity(intent);
+
+        if (message.split("#")[0].equals("00")) {
+            if (message.split("#")[1].equals("01")) {
+                Log.e("Loging", "works to here");
+                if (dataBaseHelper.getDatabase() != null) {
+                    if (Integer.parseInt(message.split("#")[2]) == (dataBaseHelper.getDatabase().getVersion())) {
+                        progressDialog.setMessage("Game is up to date.");
+                        allSetUp = true;
+                    } else {
+                        progressDialog.setMessage("Checking for updates");
+                        connectTask.getTcpClient().sendMessage("00#01#" + dataBaseHelper.getDatabase().getVersion() + "\n");
+                        //update request will progress
+                    }
+                } else {
+                    connectTask.getTcpClient().sendMessage("00#01#00#" + "\n");
+                }
+            }
+            if (message.split("#")[1].equals("02")) {
+                //update db
+
+            } else if (message.split("#")[1].equals("03")) {
+                //copy db
+                connectTask.getTcpClient().callUpdate(Integer.parseInt(message.split("#")[2]));
+            } else {
+                progressDialog.setMessage("Erro:" + message.split("#")[2] + "\n" + message.split("#")[3]);
+            }
+
+
+            if (allSetUp) {
+                progressDialog.dismiss();
+                Intent intent = new Intent(this, MainMenuActivity.class);
+                startActivity(intent);
+            }
         }
 
     }
 
+    public static void confirmUpdate() {
 
+    }
+
+    public static void UpdateDB(byte[] b) {
+        try {
+            dataBaseHelper.copyDataBase(b);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

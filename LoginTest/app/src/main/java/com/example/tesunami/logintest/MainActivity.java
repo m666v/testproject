@@ -13,7 +13,6 @@ import android.widget.Spinner;
 public class MainActivity extends AppCompatActivity implements DecoderActivity {
     private static final String[] ITEMS = {"LeonServer", "MohammadServer"};
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
